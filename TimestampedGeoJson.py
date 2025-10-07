@@ -81,8 +81,6 @@ map._children[lastTile].show = True
 colormap.caption = 'Count'
 colormap.add_to(map)
 
-df['color'] = df['Count'].apply(lambda x: colormap(x))
-
 group = folium.FeatureGroup(name='Pigeons', control=True).add_to(map)
 
 timeline = Timeline(
@@ -100,7 +98,7 @@ timeline = Timeline(
                     "end": item[0][1],
                     "popup": item[2],
                     "count": float(item[3]),
-                    "color": df.loc[df['Count'] == item[3], 'color'].values[0]
+                    "color": colormap(item[3]),
                 },
             }
             for item in zip(times, coords, popups, data)
@@ -114,7 +112,8 @@ timeline = Timeline(
                 radius: 6,
                 color: color,
                 fillColor: color,
-                fillOpacity: 0.85,
+                fillOpacity: 0.2,
+                opacity: 0.2,
                 weight: 1
             });
         }

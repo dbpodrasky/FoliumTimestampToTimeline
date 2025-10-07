@@ -9,6 +9,7 @@ import geopandas
 import numpy as np
 from pyproj import CRS, Transformer
 from datetime import datetime
+import branca.colormap as cm
 
 colors = ['#e41a1c','#377eb8','#4daf4a','#984ea3','#ff7f00']
 
@@ -40,9 +41,14 @@ df['X'] = UnProjedCoords[1]
 df['Y'] = UnProjedCoords[0]
 gdf = geopandas.GeoDataFrame(df, geometry=geopandas.points_from_xy(df['X'], df['Y']), crs="EPSG:4326")
 
+
+
 coords = zip(df['X'], df['Y'])
 data = df['Count']
 popups = df['Count']
+
+vmin, vmax = df['Count'].min(), df['Count'].max()
+colormap = cm.linear.plasma.scale(vmin, vmax)
 
 names = [
     'Positron',
@@ -72,26 +78,47 @@ for index, tileName in enumerate(names):
 lastTile = list(map._children.items())[-1][0]
 map._children[lastTile].show = True
 
+colormap.caption = 'Count'
+colormap.add_to(map)
+
+df['color'] = df['Count'].apply(lambda x: colormap(x))
+
 group = folium.FeatureGroup(name='Pigeons', control=True).add_to(map)
+
 timeline = Timeline(
     {
         "type": "FeatureCollection",
         "features": [
             {
-            "type": "Feature",
-            "geometry": {
-                "type": "Point",
-                "coordinates": item[1]
+                "type": "Feature",
+                "geometry": {
+                    "type": "Point",
+                    "coordinates": item[1]
                 },
-            "properties": {
-                "start": item[0][0],
-                "end": item[0][1],
-                "popup": item[2],
-            },
-        }
-        for item in zip(times, coords, popups, data)
+                "properties": {
+                    "start": item[0][0],
+                    "end": item[0][1],
+                    "popup": item[2],
+                    "count": float(item[3]),
+                    "color": df.loc[df['Count'] == item[3], 'color'].values[0]
+                },
+            }
+            for item in zip(times, coords, popups, data)
         ]
     },
+    
+    point_to_layer=JsCode("""
+        (feature, latlng) => {
+            const color = feature.properties.color;
+            return L.circleMarker(latlng, {
+                radius: 6,
+                color: color,
+                fillColor: color,
+                fillOpacity: 0.85,
+                weight: 1
+            });
+        }
+    """),
 )
 timeline.add_to(group)
 
@@ -100,9 +127,7 @@ TimelineSlider(
     show_ticks=True,
     enable_keyboard_controls=True,
     playback_duration=30000,
-#    point_to_layer=JsCode("(f, latlng) => { return L.circleMarker(latlng, {radius: 8}) }"),
 ).add_timelines(timeline).add_to(map)
 
 LayerControl().add_to(map)
-
 map.save('UseTimeLine.html')
